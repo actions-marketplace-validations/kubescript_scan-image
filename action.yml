@@ -1,0 +1,90 @@
+name: 'Scan Container Image'
+description: 'Scan a container image for vulnerabilities and secrets with Trivy, reporting in the job summary without blocking by default'
+author: 'KubeScript'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  image:
+    description: 'Image to scan (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-app:sha)'
+    required: true
+  severity:
+    description: 'Comma-separated severities to report'
+    required: false
+    default: 'HIGH,CRITICAL'
+  ignore-unfixed:
+    description: 'Report only vulnerabilities that already have a fixed version'
+    required: false
+    default: 'true'
+  scanners:
+    description: 'Comma-separated Trivy scanners (vuln, secret, misconfig, license)'
+    required: false
+    default: 'vuln,secret'
+  fail-on-findings:
+    description: 'Fail the step when findings are reported. false = only warn (non-blocking)'
+    required: false
+    default: 'false'
+  ignore-file:
+    description: 'Path to a .trivyignore file (relative to the workspace)'
+    required: false
+    default: ''
+  pull:
+    description: 'Pull the image before scanning. Set to false when the image was built in the same job'
+    required: false
+    default: 'true'
+  registry-username:
+    description: 'Registry username. Leave empty if the runner is already logged in (e.g. docker/login-action)'
+    required: false
+    default: ''
+  registry-password:
+    description: 'Registry password or token paired with registry-username'
+    required: false
+    default: ''
+  trivy-version:
+    description: 'Trivy version (aquasec/trivy image tag)'
+    required: false
+    default: '0.72.0'
+  summary:
+    description: 'Write the findings table to the job summary'
+    required: false
+    default: 'true'
+  output:
+    description: 'Path to save the JSON report (relative to the workspace), e.g. to upload as an artifact. Empty = not kept'
+    required: false
+    default: ''
+
+outputs:
+  findings:
+    description: 'Total number of findings (vulnerabilities + secrets) reported'
+    value: ${{ steps.scan.outputs.findings }}
+  critical:
+    description: 'Number of CRITICAL findings'
+    value: ${{ steps.scan.outputs.critical }}
+  high:
+    description: 'Number of HIGH findings'
+    value: ${{ steps.scan.outputs.high }}
+  report:
+    description: 'Path to the JSON report (only when output is set)'
+    value: ${{ steps.scan.outputs.report }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Scan image
+      id: scan
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        SEVERITY: ${{ inputs.severity }}
+        IGNORE_UNFIXED: ${{ inputs.ignore-unfixed }}
+        SCANNERS: ${{ inputs.scanners }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+        IGNORE_FILE: ${{ inputs.ignore-file }}
+        PULL: ${{ inputs.pull }}
+        REGISTRY_USERNAME: ${{ inputs.registry-username }}
+        REGISTRY_PASSWORD: ${{ inputs.registry-password }}
+        TRIVY_VERSION: ${{ inputs.trivy-version }}
+        SUMMARY: ${{ inputs.summary }}
+        OUTPUT: ${{ inputs.output }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/scan.sh"
